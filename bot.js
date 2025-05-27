@@ -1,9 +1,27 @@
 const { Client } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
+const express = require('express');
+const cors = require('cors');
+const app = express();
+const multer = require('multer');
+const axios = require('axios');
+const http = require('http');
+const server = http.createServer(app);
+app.use(express.json());
+
+let isConnected = false;
 
 
-const TEXTO_FINAL_PADRAO = 'Nosso atendimento automático foi encerrado.\nAgradecemos o seu contato! Um especialista do Escritório da Dra. Paula Marcula irá continuar com você em breve.\nCaso precise de algo mais, estamos à disposição.';
+const io = require('socket.io')(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
+
+const upload = multer({ storage: multer.memoryStorage() });
+
 const client = new Client();
 const BLOQUEADOS_FILE = 'bloqueados.json';
 
@@ -19,13 +37,46 @@ const userState = new Map(); //controle de estado
 
 client.on('ready', () => {
     console.log('Client is ready!');
+    isConnected = true;
+    io.emit('ready');
 });
 
-client.on('qr', qr => {
+
+client.on('qr', (qr) => {
+    isConnected = false;
     qrcode.generate(qr, { small: true });
+    io.emit('qr', qr);
 });
 
 client.initialize();
+app.use(cors());
+
+app.get('/status', (req, res) => {
+    res.json({ isConnected: isConnected });
+});
+
+app.get('/', (req, res) => {
+    res.sendFile('index.html', { root: __dirname });
+});
+
+app.get('/socket.io/socket.io.js', (req, res) => {
+    res.sendFile(require.resolve('socket.io-client/dist/socket.io.js'));
+});
+
+
+client.on('disconnected', (reason) => {
+    console.log('Cliente desconectado');
+    isConnected = false;
+    io.emit('disconnected');
+
+    client.on('qr', (qr) => {
+        isConnected = false;
+        qrcode.generate(qr, { small: true });
+        io.emit('qr', qr);
+    });
+
+    client.initialize();
+});
 
 client.on('message_create', async message => {
     if (message.fromMe) return; // Ignora mensagens do próprio bot
@@ -113,3 +164,7 @@ function finalizarContato(user, message, textoFinal) {
 function salvarBloqueados() {
     fs.writeFileSync(BLOQUEADOS_FILE, JSON.stringify([...bloqueados]));
 }
+
+server.listen(3333, () => {
+    console.log('Servidor rodando na porta 3333');
+});
