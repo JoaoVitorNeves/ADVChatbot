@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WhatsApp QR Code</title>
+    <script src="http://localhost:3333/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        #loadingMessage {
+            display: block; /* Mantém a mensagem visível por padrão */
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        #qrcode {
+            display: none;
+            margin: 20px auto;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        #status {
+            color: green;
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Escaneie o QR CODE:</h1>
+    <p id="loadingMessage">Gerando QR CODE, aguarde...</p>
+    <canvas id="qrcode"></canvas>
+    <div id="status"></div>
+
+    <script>
+        const socket = io('http://localhost:3333');
+        const qrCodeElement = document.getElementById('qrcode');
+        const statusElement = document.getElementById('status');
+        const loadingMessageElement = document.getElementById('loadingMessage');
+    
+        socket.on('qr', qr => {
+            QRCode.toCanvas(qrCodeElement, qr, function (error) {
+                if (error) console.error(error);
+            });
+            // Quando o QR code é gerado, oculta a mensagem de carregamento e exibe o QR code
+            loadingMessageElement.style.display = 'none';
+            qrCodeElement.style.display = 'block';
+        });
+    
+        socket.on('ready', () => {
+            qrCodeElement.style.display = 'none';
+            statusElement.innerText = 'Conectado!';
+            loadingMessageElement.style.display = 'none'; // Oculta a mensagem quando o dispositivo estiver conectado
+        });
+
+        socket.on('disconnected', () => {
+            qrCodeElement.style.display = 'block'; // Mostra o QR Code novamente
+            statusElement.innerText = 'Desconectado. Escaneie o QR Code novamente.';
+            loadingMessageElement.style.display = 'none'; // Oculta a mensagem quando o dispositivo estiver desconectado
+        });
+    
+        // Verificar o estado na carga da página
+        fetch('http://localhost:3333/status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.isConnected) {
+                    qrCodeElement.style.display = 'none';
+                    statusElement.innerText = 'Conectado!';
+                    loadingMessageElement.style.display = 'none'; // Oculta a mensagem quando a página carrega
+                }
+            });
+    </script>
+</body>
+</html>
