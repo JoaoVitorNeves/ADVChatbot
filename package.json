@@ -6,7 +6,8 @@
     "http": "^0.0.1-security",
     "multer": "^2.0.0",
     "qrcode-terminal": "^0.12.0",
+    "react": "^19.1.0",
     "socket.io": "^4.8.1",
-    "whatsapp-web.js": "^1.28.0"
+    "whatsapp-web.js": "^1.30.0"
   }
 }
